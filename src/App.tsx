@@ -1,6 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react-native/no-inline-styles */
-/* eslint-disable @typescript-eslint/no-shadow */
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Pressable,
@@ -10,6 +9,8 @@ import {
 } from 'react-native';
 import SelectDropdown from 'react-native-select-dropdown';
 import TTS, { Voice } from 'react-native-tts';
+import { TextToRead } from './diccionarioTextos/textToRead';
+import { defaultTheme } from './styles/default.theme';
 
 //NOTE: como actuamos en caso que el usuario tenga activada
 //el asistente de voz nativo?
@@ -18,15 +19,15 @@ import TTS, { Voice } from 'react-native-tts';
 
 //chequear si voiceOver esta activado deshabilitar el de la app
 
-
-
 const App = () => {
+  const theme = defaultTheme();
   const [size, setSize] = useState(18);
+  const [pause, setPause] = useState(0);
   const voicesName = ['Efraín', 'Clara', 'Marcos', 'Abril'];
   const [voicesAvailables, setVoicesAvailables] = useState<Voice[]>([]);
   const fuenteMaxima = 30;
   const fuenteMinima = 12;
-  const ref = useRef();
+  const textPositionRef = useRef(0);
 
   const styles = StyleSheet.create({
     container: {
@@ -43,10 +44,11 @@ const App = () => {
       right: 15,
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       zIndex: 999,
     },
     fab: {
-      backgroundColor: 'grey',
+      backgroundColor: '#229CA5',
       width: 40,
       height: 40,
       borderRadius: 30,
@@ -54,35 +56,46 @@ const App = () => {
       alignItems: 'center',
       margin: 5,
     },
+    fabMay: {
+      fontSize: 26,
+      fontWeight: 'bold',
+      color: 'white',
+    },
+    fabMin: {
+      fontSize: 22,
+      fontWeight: 'bold',
+      color: 'white',
+    },
     button: {
       backgroundColor: '#2BAEB7',
       padding: 10,
       borderRadius: 10,
     },
-    volumenContainer: {
+    audioContainer: {
       flexDirection: 'row',
       position: 'absolute',
       top: 15,
       left: 15,
     },
-    volumen: {
+    stopIcon: {
       fontSize: 22,
       fontWeight: 'bold',
+      color: 'white',
     },
     titulo: {
       color: 'black',
-      fontWeight:'bold',
+      fontWeight: 'bold',
       fontSize: size,
     },
     subtitulo: {
       color: 'black',
-      fontStyle:'italic',
-      fontSize: size - 2,
+      fontStyle: 'italic',
+      fontSize: size - 8,
     },
     parrafo: {
       color: 'black',
-      fontSize: size - 4,
-    }
+      fontSize: size - 12,
+    },
   });
 
   useEffect(() => {
@@ -102,19 +115,14 @@ const App = () => {
     }
   }, []);
 
-  function agrandarFuente() {
-    if (size < fuenteMaxima) {
-      setSize(size + 2);
-    }
-  }
-  function achicaFuente() {
-    if (size > fuenteMinima) {
-      setSize(size - 2);
-    }
-  }
+  useEffect(() => {
+    TTS.addEventListener('tts-progress', progress => {
+      textPositionRef.current = progress.end;
+    });
 
-  function subirVolumen() { TTS.pause(); }
-  function bajarVolumen() { TTS.resume(); }
+    return () => TTS.removeEventListener('tts-progress', () => console.log('remove'));
+  }, []);
+
 
   async function getVoices() {
     const voices = await TTS.voices();
@@ -123,13 +131,35 @@ const App = () => {
       .map(voice => {
         return voice;
       });
-    console.log(JSON.stringify(array, null, 2));
     setVoicesAvailables(array);
   }
 
-  function speech() {
-    TTS.speak('Hola, ahora vas a poder dar la fe de vida estes donde estes');
+
+  function agrandarFuente() {
+    if (size < fuenteMaxima) {
+      setSize(size + 2);
+    }
   }
+
+  function achicaFuente() {
+    if (size > fuenteMinima) {
+      setSize(size - 2);
+    }
+  }
+
+  function speech() {
+    TTS.speak(TextToRead.ON_BOARDING_ONE);
+  }
+
+  function stop() {
+    TTS.stop(); setPause(textPositionRef.current);
+  }
+
+  function resume() {
+    const temp_text = TextToRead.ON_BOARDING_ONE.slice(pause);
+    TTS.speak(temp_text);
+  }
+
 
   function handleSelectedVoice(voice: string) {
     switch (voice) {
@@ -150,47 +180,44 @@ const App = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: 'white', flex: 1 }]}>
-      <Pressable ref={ref.current} style={styles.status} onPress={speech}>
-        <Text style={styles.titulo}>
+      <Pressable style={styles.status} onPress={speech}>
+        <Text style={theme.primaryText}>
           <Text>{'Hola, \n'}</Text>
           <Text>{'Ahora vas a poder \n dar'} </Text>
           <Text>fe de vida </Text>
           {' \n (supervivencia) \n estés donde estés.'}
         </Text>
-
-        <Text style={styles.subtitulo}>Subtitulo ejemplo</Text>
-        <Text style={styles.parrafo}>Lorem Ipsum is simply dummy text of the printing and typesetting industry. </Text>
-
+        <Text style={theme.secondaryText}>
+          {TextToRead.SUBTITLE}
+        </Text>
+        <Text style={theme.paragraph}>
+          {TextToRead.PARAGRAPH}
+        </Text>
       </Pressable>
 
       <View style={styles.fabContainer}>
         <Pressable style={styles.fab} onPress={agrandarFuente}>
-          <Text style={{ fontSize: 20, fontWeight: 'bold' }}>A</Text>
+          <Text style={styles.fabMay}>A</Text>
         </Pressable>
         <Pressable style={styles.fab} onPress={achicaFuente}>
-          <Text style={{ fontSize: 14, fontWeight: 'bold' }}>A</Text>
+          <Text style={styles.fabMin}>A</Text>
         </Pressable>
       </View>
 
-      <View style={styles.volumenContainer}>
-        <Pressable style={styles.fab} onPress={subirVolumen}>
-          <Text style={styles.volumen}>||</Text>
+      <View style={styles.audioContainer}>
+        <Pressable style={styles.fab} onPress={stop}>
+          <Text style={styles.stopIcon}>||</Text>
         </Pressable>
-        <Pressable style={styles.fab} onPress={bajarVolumen}>
-          <Text style={styles.volumen}>{'>'}</Text>
+        <Pressable style={styles.fab} onPress={resume}>
+          <Text style={styles.stopIcon}>{'>'}</Text>
         </Pressable>
       </View>
-
-      {/* <ScrollView>
-        <Text>
-          {voicesAvailables && JSON.stringify(voicesAvailables, null, 2)}
-        </Text>
-      </ScrollView> */}
 
       <View>
-        <Text style={styles.parrafo}>Cambiar voz de lectura</Text>
+        <Text style={theme.label}>Cambiar voz de lectura</Text>
         {voicesAvailables &&
           <SelectDropdown
+            buttonStyle={{ backgroundColor: '#2BAEB7' }}
             dropdownIconPosition="right"
             defaultButtonText="Voces disponibles"
             data={voicesName}
